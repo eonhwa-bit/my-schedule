@@ -16,18 +16,30 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{ background:var(--paper); color:var(--ink); font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif; line-height:1.6; }
-  .wrap{ max-width:520px; margin:0 auto; padding:28px 16px; }
+  .wrap{ max-width:640px; margin:0 auto; padding:28px 16px; }
   .page-card{ background:var(--paper-deep); border-radius:16px; padding:28px 26px 32px; }
   h1{ font-family:'Noto Serif KR',serif; font-size:22px; margin:0 0 20px; }
   .section-title{ font-family:'Noto Serif KR',serif; font-size:15px; font-weight:500; margin:24px 0 10px; }
   .section-title:first-of-type{ margin-top:0; }
   .card{ background:#fff; border:0.5px solid var(--line); border-radius:10px; padding:16px; margin-bottom:8px; }
   .card p{ margin:0 0 10px; font-size:13px; color:var(--ink-soft); }
-  .btn{ display:inline-flex; align-items:center; gap:6px; background:var(--ink); color:var(--paper); text-decoration:none; font-size:13px; padding:9px 16px; border-radius:8px; }
+  .btn{ display:inline-flex; align-items:center; gap:6px; background:var(--ink); color:var(--paper); text-decoration:none; font-size:13px; padding:9px 16px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; }
   .btn:hover{ opacity:0.9; }
   .btn.secondary{ background:transparent; color:var(--ink); border:0.5px solid var(--line); }
   .row{ display:flex; gap:8px; flex-wrap:wrap; }
   .note{ font-size:11.5px; color:var(--ink-soft); margin-top:6px; }
+
+  /* schedule editor */
+  .day-edit{ background:#fff; border:0.5px solid var(--line); border-radius:10px; padding:14px; margin-bottom:10px; }
+  .day-edit .day-head{ font-family:'Noto Serif KR',serif; font-weight:700; font-size:14px; margin-bottom:8px; }
+  .day-edit .field-row{ display:flex; gap:6px; margin-bottom:6px; }
+  .day-edit .field-row > *{ flex:1; min-width:0; }
+  .day-edit input[type=text], .day-edit input[type=time], .day-edit select{
+    font-family:inherit; font-size:13px; padding:7px 8px; border:1px solid var(--line); border-radius:5px; width:100%; background:#fff;
+  }
+  .day-edit label.mini{ font-size:10px; color:var(--ink-soft); display:flex; flex-direction:column; gap:2px; }
+  .day-edit .pub-toggle{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); margin-top:4px; }
+  .save-note{ font-size:12px; color:var(--ink-soft); margin-top:10px; }
 
   /* password gate */
   #gate{ position:fixed; inset:0; background:var(--paper); display:flex; align-items:center; justify-content:center; padding:20px; z-index:10; }
@@ -79,9 +91,17 @@
     </div>
   </div>
 
+  <h2 class="section-title">일정 수정</h2>
+  <div class="card">
+    <p id="loadStatus">일정을 불러오는 중...</p>
+    <div id="dayEditList"></div>
+    <button class="btn" id="downloadBtn" style="display:none;">수정한 index.html 다운로드</button>
+    <p class="save-note" id="saveNote" style="display:none;">다운로드된 파일을 GitHub의 기존 index.html 위에 다시 업로드하면 반영돼요.</p>
+  </div>
+
   <h2 class="section-title">일정표로 돌아가기</h2>
   <div class="card">
-    <p>요일별 일정·진행률·공지는 코드를 직접 고쳐서 반영하는 방식이라, 변경이 필요하면 이 파일을 만든 곳에서 요청해주세요.</p>
+    <p>진행률·공지·규칙 등 다른 항목은 아직 코드를 고쳐야 반영돼요. 필요하면 이 파일을 만든 곳에서 요청해주세요.</p>
     <div class="row">
       <a class="btn secondary" href="./index.html">일정표 열기</a>
     </div>
@@ -130,6 +150,137 @@ document.getElementById("gateBtn").addEventListener("click", async () => {
 });
 document.getElementById("pwInput").addEventListener("keydown", e => { if(e.key==="Enter") document.getElementById("gateBtn").click(); });
 document.getElementById("pwConfirm").addEventListener("keydown", e => { if(e.key==="Enter") document.getElementById("gateBtn").click(); });
+
+/* ---------- 일정 수정 ---------- */
+const DAY_NAMES = ["월","화","수","목","금","토","일"];
+const CATEGORIES = {
+  "시쓰기":"시 쓰기", "프로그램개발":"프로그램 개발", "ADsP공부":"ADsP 공부",
+  "강의프롬프트":"강의·프롬프트", "자유방송":"자유 방송", "종합게임":"종합게임",
+  "주간준비":"다음주 준비", "없음":"없음"
+};
+
+let rawHTML = "";
+let days = [];
+
+function catOptions(selected){
+  return Object.keys(CATEGORIES).map(k => `<option value="${k}" ${k===selected?"selected":""}>${CATEGORIES[k]}</option>`).join("");
+}
+
+const TIME_PRESETS = [
+  { key:"weekday_evening", label:"평일 저녁 (22:00-23:00)", start:"22:00", end:"23:00" },
+  { key:"weekend_morning", label:"주말 오전 (10:00-12:00)", start:"10:00", end:"12:00" },
+  { key:"weekend_afternoon", label:"주말 오후 (13:00-15:00)", start:"13:00", end:"15:00" },
+  { key:"late_afternoon", label:"늦은 오후 (16:00-18:00)", start:"16:00", end:"18:00" },
+  { key:"custom", label:"직접 입력", start:null, end:null }
+];
+
+function matchPreset(start,end){
+  const found = TIME_PRESETS.find(p => p.start===start && p.end===end);
+  return found ? found.key : "custom";
+}
+
+function timePresetOptions(selectedKey){
+  return TIME_PRESETS.map(p => `<option value="${p.key}" ${p.key===selectedKey?"selected":""}>${p.label}</option>`).join("");
+}
+
+function renderDayEditor(){
+  const el = document.getElementById("dayEditList");
+  el.innerHTML = days.map((d,i) => {
+    const presetKey = d._presetKey || matchPreset(d.startTime, d.endTime);
+    const isCustom = presetKey === "custom";
+    return `
+    <div class="day-edit">
+      <div class="day-head">${DAY_NAMES[i]}요일</div>
+      <div class="field-row">
+        <label class="mini">콘텐츠<select data-f="cat0" data-i="${i}">${catOptions(d.cats[0])}</select></label>
+        <label class="mini">추가(선택)<select data-f="cat1" data-i="${i}">${catOptions(d.cats[1]||"없음")}</select></label>
+      </div>
+      <div class="field-row">
+        <label class="mini">시간대<select data-f="timePreset" data-i="${i}">${timePresetOptions(presetKey)}</select></label>
+      </div>
+      <div class="field-row custom-time" data-custom-for="${i}" style="${isCustom?"":"display:none;"}">
+        <label class="mini">시작<input type="time" data-f="startTime" data-i="${i}" value="${d.startTime||""}"></label>
+        <label class="mini">종료(선택)<input type="time" data-f="endTime" data-i="${i}" value="${d.endTime||""}"></label>
+      </div>
+      <label class="pub-toggle"><input type="checkbox" data-f="published" data-i="${i}" ${d.published?"checked":""}> 시청자에게 공개</label>
+    </div>
+  `;
+  }).join("");
+  el.querySelectorAll("[data-f]").forEach(elm => {
+    const evt = (elm.tagName==="SELECT"||elm.type==="checkbox") ? "change" : "input";
+    elm.addEventListener(evt, e => {
+      const i = Number(e.target.dataset.i), f = e.target.dataset.f;
+      if(f==="cat0") days[i].cats[0] = e.target.value;
+      else if(f==="cat1") days[i].cats[1] = e.target.value;
+      else if(f==="published") days[i].published = e.target.checked;
+      else if(f==="timePreset"){
+        days[i]._presetKey = e.target.value;
+        const preset = TIME_PRESETS.find(p => p.key === e.target.value);
+        if(preset && preset.key !== "custom"){
+          days[i].startTime = preset.start;
+          days[i].endTime = preset.end;
+        }
+        renderDayEditor();
+        return;
+      }
+      else days[i][f] = e.target.value;
+    });
+  });
+}
+
+function formatTimeText(start, end){
+  if(!start) return "";
+  if(end) return `${start} - ${end}`;
+  return `${start} ~`;
+}
+
+function buildDaysLiteral(){
+  const lines = days.map(d => {
+    const c0 = d.cats[0] || "없음", c1 = d.cats[1] || "없음";
+    const parts = [c0, c1].filter(c => c !== "없음").map(c => CATEGORIES[c]);
+    const title = parts.length ? parts.join(" + ") : "휴방";
+    const time = formatTimeText(d.startTime, d.endTime);
+    const cats = `[${JSON.stringify(c0)},${JSON.stringify(c1)}]`;
+    return `  { title:${JSON.stringify(title)}, time:${JSON.stringify(time)}, startTime:${JSON.stringify(d.startTime||"")}, endTime:${JSON.stringify(d.endTime||"")}, cats:${cats}, published:${!!d.published} }`;
+  });
+  return `const DAYS = [\n${lines.join(",\n")}\n];`;
+}
+
+async function loadSchedule(){
+  const status = document.getElementById("loadStatus");
+  try{
+    const res = await fetch("./index.html", { cache: "no-store" });
+    rawHTML = await res.text();
+    const m = rawHTML.match(/const DAYS = (\[[\s\S]*?\n\]);/);
+    if(!m) throw new Error("DAYS를 찾지 못했어요");
+    days = new Function("return " + m[1])();
+    days.forEach(d => { d._presetKey = matchPreset(d.startTime, d.endTime); });
+    status.style.display = "none";
+    renderDayEditor();
+    document.getElementById("downloadBtn").style.display = "inline-flex";
+    document.getElementById("saveNote").style.display = "block";
+  }catch(e){
+    console.error(e);
+    status.textContent = "일정을 불러오지 못했어요 — 같은 폴더에 index.html이 있는지 확인해주세요.";
+  }
+}
+
+document.getElementById("downloadBtn").addEventListener("click", () => {
+  const newLiteral = buildDaysLiteral();
+  const newHTML = rawHTML.replace(/const DAYS = \[[\s\S]*?\n\];/, newLiteral);
+  const blob = new Blob([newHTML], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "index.html";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+const _origShowContent = showContent;
+showContent = function(){
+  _origShowContent();
+  loadSchedule();
+};
 </script>
 </body>
 </html>
