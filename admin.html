@@ -95,8 +95,21 @@
   <div class="card">
     <p id="loadStatus">일정을 불러오는 중...</p>
     <div id="dayEditList"></div>
-    <button class="btn" id="downloadBtn" style="display:none;">수정한 index.html 다운로드</button>
-    <p class="save-note" id="saveNote" style="display:none;">다운로드된 파일을 GitHub의 기존 index.html 위에 다시 업로드하면 반영돼요.</p>
+    <div class="row">
+      <button class="btn" id="saveGithubBtn" style="display:none;">GitHub에 바로 저장</button>
+      <button class="btn secondary" id="downloadBtn" style="display:none;">index.html 다운로드만</button>
+    </div>
+    <p class="save-note" id="saveNote" style="display:none;"></p>
+  </div>
+
+  <h2 class="section-title">GitHub 자동저장 연결</h2>
+  <div class="card">
+    <p id="tokenStatus">아직 연결 안 됨 — 연결하면 "GitHub에 바로 저장" 버튼으로 다운로드 없이 바로 반영돼요.</p>
+    <div class="row" id="tokenForm">
+      <input type="password" id="tokenInput" placeholder="ghp_ 또는 github_pat_ 로 시작하는 토큰 붙여넣기" style="flex:1; min-width:200px; font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--line); border-radius:6px;">
+      <button class="btn" id="tokenSaveBtn">연결</button>
+    </div>
+    <button class="btn secondary" id="tokenRemoveBtn" style="display:none;">연결 해제</button>
   </div>
 
   <h2 class="section-title">일정표로 돌아가기</h2>
@@ -258,16 +271,19 @@ async function loadSchedule(){
     status.style.display = "none";
     renderDayEditor();
     document.getElementById("downloadBtn").style.display = "inline-flex";
-    document.getElementById("saveNote").style.display = "block";
   }catch(e){
     console.error(e);
     status.textContent = "일정을 불러오지 못했어요 — 같은 폴더에 index.html이 있는지 확인해주세요.";
   }
 }
 
-document.getElementById("downloadBtn").addEventListener("click", () => {
+function buildUpdatedHTML(){
   const newLiteral = buildDaysLiteral();
-  const newHTML = rawHTML.replace(/const DAYS = \[[\s\S]*?\n\];/, newLiteral);
+  return rawHTML.replace(/const DAYS = \[[\s\S]*?\n\];/, newLiteral);
+}
+
+document.getElementById("downloadBtn").addEventListener("click", () => {
+  const newHTML = buildUpdatedHTML();
   const blob = new Blob([newHTML], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -275,6 +291,89 @@ document.getElementById("downloadBtn").addEventListener("click", () => {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 });
+
+/* ---------- GitHub 자동저장 ---------- */
+const GH_OWNER = "eonhwa-bit";
+const GH_REPO = "my-schedule";
+const GH_PATH = "index.html";
+const GH_TOKEN_KEY = "gh-pat-token";
+
+function utf8ToBase64(str){
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
+}
+
+function refreshTokenUI(){
+  const token = localStorage.getItem(GH_TOKEN_KEY);
+  const statusEl = document.getElementById("tokenStatus");
+  const formEl = document.getElementById("tokenForm");
+  const removeBtn = document.getElementById("tokenRemoveBtn");
+  const saveGithubBtn = document.getElementById("saveGithubBtn");
+  if(token){
+    statusEl.textContent = "연결됨 — \"GitHub에 바로 저장\" 버튼을 쓸 수 있어요.";
+    formEl.style.display = "none";
+    removeBtn.style.display = "inline-flex";
+    saveGithubBtn.style.display = "inline-flex";
+  } else {
+    statusEl.textContent = "아직 연결 안 됨 — 연결하면 \"GitHub에 바로 저장\" 버튼으로 다운로드 없이 바로 반영돼요.";
+    formEl.style.display = "flex";
+    removeBtn.style.display = "none";
+    saveGithubBtn.style.display = "none";
+  }
+}
+
+document.getElementById("tokenSaveBtn").addEventListener("click", () => {
+  const val = document.getElementById("tokenInput").value.trim();
+  if(!val){ return; }
+  localStorage.setItem(GH_TOKEN_KEY, val);
+  document.getElementById("tokenInput").value = "";
+  refreshTokenUI();
+});
+document.getElementById("tokenRemoveBtn").addEventListener("click", () => {
+  localStorage.removeItem(GH_TOKEN_KEY);
+  refreshTokenUI();
+});
+
+document.getElementById("saveGithubBtn").addEventListener("click", async () => {
+  const token = localStorage.getItem(GH_TOKEN_KEY);
+  const btn = document.getElementById("saveGithubBtn");
+  const note = document.getElementById("saveNote");
+  if(!token){ note.textContent = "먼저 아래에서 GitHub 토큰을 연결해주세요."; note.style.display = "block"; return; }
+
+  btn.disabled = true; btn.textContent = "저장 중...";
+  note.style.display = "none";
+  try{
+    const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_PATH}`;
+    const getRes = await fetch(apiUrl, { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } });
+    if(!getRes.ok) throw new Error("파일 정보를 못 가져왔어요 (토큰 권한을 확인해주세요)");
+    const fileData = await getRes.json();
+    const newHTML = buildUpdatedHTML();
+    const putRes = await fetch(apiUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+      body: JSON.stringify({
+        message: "일정 수정 (관리자 페이지에서 저장)",
+        content: utf8ToBase64(newHTML),
+        sha: fileData.sha,
+        branch: "main"
+      })
+    });
+    if(!putRes.ok){ const err = await putRes.json().catch(()=>({})); throw new Error(err.message || "저장에 실패했어요"); }
+    rawHTML = newHTML;
+    note.textContent = "저장됐어요! 1~2분 뒤 실제 사이트에 반영돼요.";
+    note.style.display = "block";
+  }catch(e){
+    console.error(e);
+    note.textContent = "저장 실패: " + e.message;
+    note.style.display = "block";
+  }finally{
+    btn.disabled = false; btn.textContent = "GitHub에 바로 저장";
+  }
+});
+
+refreshTokenUI();
 
 const _origShowContent = showContent;
 showContent = function(){
