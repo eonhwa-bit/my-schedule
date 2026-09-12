@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>관리자 요약</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EDEAE2; --paper-deep:#E1DDD0; --ink:#262A31; --ink-soft:#6C727C;
+    --vermillion:#A9863E; --line:rgba(38,42,49,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{ background:var(--paper); color:var(--ink); font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif; line-height:1.6; }
+  .wrap{ max-width:520px; margin:0 auto; padding:28px 16px; }
+  .page-card{ background:var(--paper-deep); border-radius:16px; padding:28px 26px 32px; }
+  h1{ font-family:'Noto Serif KR',serif; font-size:22px; margin:0 0 20px; }
+  .section-title{ font-family:'Noto Serif KR',serif; font-size:15px; font-weight:500; margin:24px 0 10px; }
+  .section-title:first-of-type{ margin-top:0; }
+  .card{ background:#fff; border:0.5px solid var(--line); border-radius:10px; padding:16px; margin-bottom:8px; }
+  .card p{ margin:0 0 10px; font-size:13px; color:var(--ink-soft); }
+  .btn{ display:inline-flex; align-items:center; gap:6px; background:var(--ink); color:var(--paper); text-decoration:none; font-size:13px; padding:9px 16px; border-radius:8px; }
+  .btn:hover{ opacity:0.9; }
+  .btn.secondary{ background:transparent; color:var(--ink); border:0.5px solid var(--line); }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .note{ font-size:11.5px; color:var(--ink-soft); margin-top:6px; }
+
+  /* password gate */
+  #gate{ position:fixed; inset:0; background:var(--paper); display:flex; align-items:center; justify-content:center; padding:20px; z-index:10; }
+  #gate.hidden{ display:none; }
+  .gate-box{ background:var(--paper-deep); border-radius:16px; padding:28px; max-width:320px; width:100%; }
+  .gate-box h2{ font-family:'Noto Serif KR',serif; font-size:17px; margin:0 0 8px; }
+  .gate-box p{ font-size:13px; color:var(--ink-soft); margin:0 0 16px; }
+  .gate-box input{ width:100%; font-family:inherit; font-size:14px; padding:9px 10px; border:1px solid var(--line); border-radius:6px; margin-bottom:8px; }
+  .gate-box button{ width:100%; background:var(--ink); color:var(--paper); border:none; font-family:inherit; font-size:13.5px; padding:10px; border-radius:6px; cursor:pointer; }
+  .gate-error{ color:var(--vermillion); font-size:12px; margin:0 0 8px; display:none; }
+  #content{ display:none; }
+  #content.show{ display:block; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-box">
+    <h2 id="gateTitle">관리자 로그인</h2>
+    <p id="gateDesc">비밀번호를 입력하면 요약 화면으로 들어가요.</p>
+    <input type="password" id="pwInput" placeholder="비밀번호" autocomplete="off">
+    <input type="password" id="pwConfirm" placeholder="비밀번호 확인" autocomplete="off" style="display:none;">
+    <p class="gate-error" id="gateError"></p>
+    <button id="gateBtn">로그인</button>
+  </div>
+</div>
+
+<div class="wrap" id="content">
+<div class="page-card">
+  <h1>관리자 요약</h1>
+
+  <p class="note">이 페이지는 검색에 노출되지 않고, 링크를 아는 사람만 들어올 수 있어요. 그래도 시청자에게 링크를 공유하지 않도록 주의해주세요.</p>
+
+  <h2 class="section-title">다음 방송 주제 투표</h2>
+  <div class="card">
+    <p>득표 결과와 그래프는 Tally 대시보드에서 실시간으로 확인할 수 있어요.</p>
+    <div class="row">
+      <a class="btn" href="https://tally.so/forms/44601O/insights" target="_blank" rel="noopener">득표 결과 보기</a>
+      <a class="btn secondary" href="https://tally.so/forms/44601O/edit" target="_blank" rel="noopener">질문 수정하기</a>
+    </div>
+  </div>
+
+  <h2 class="section-title">시청자 건의함</h2>
+  <div class="card">
+    <p>들어온 건의 글은 Tally 제출물 목록에서 시간순으로 볼 수 있어요.</p>
+    <div class="row">
+      <a class="btn" href="https://tally.so/forms/PdxQvQ/submissions" target="_blank" rel="noopener">건의 목록 보기</a>
+      <a class="btn secondary" href="https://tally.so/forms/PdxQvQ/edit" target="_blank" rel="noopener">질문 수정하기</a>
+    </div>
+  </div>
+
+  <h2 class="section-title">일정표로 돌아가기</h2>
+  <div class="card">
+    <p>요일별 일정·진행률·공지는 코드를 직접 고쳐서 반영하는 방식이라, 변경이 필요하면 이 파일을 만든 곳에서 요청해주세요.</p>
+    <div class="row">
+      <a class="btn secondary" href="./index.html">일정표 열기</a>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = "admin-page-pw-hash";
+
+async function hashText(text){
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+function showContent(){
+  document.getElementById("gate").classList.add("hidden");
+  document.getElementById("content").classList.add("show");
+}
+
+const savedHash = localStorage.getItem(STORAGE_KEY);
+const isSetup = !savedHash;
+if(isSetup){
+  document.getElementById("gateTitle").textContent = "관리자 비밀번호 만들기";
+  document.getElementById("gateDesc").textContent = "이 브라우저에서 처음 여셨네요. 앞으로 이 페이지에 들어올 때 쓸 비밀번호를 정해주세요.";
+  document.getElementById("pwConfirm").style.display = "block";
+  document.getElementById("gateBtn").textContent = "설정하고 시작";
+}
+
+document.getElementById("gateBtn").addEventListener("click", async () => {
+  const pw = document.getElementById("pwInput").value;
+  const pwConfirm = document.getElementById("pwConfirm").value;
+  const err = document.getElementById("gateError");
+  err.style.display = "none";
+
+  if(isSetup){
+    if(pw.length < 4){ err.textContent="비밀번호는 4자 이상으로 정해주세요."; err.style.display="block"; return; }
+    if(pw !== pwConfirm){ err.textContent="두 비밀번호가 서로 달라요."; err.style.display="block"; return; }
+    localStorage.setItem(STORAGE_KEY, await hashText(pw));
+    showContent();
+  } else {
+    if(await hashText(pw) === savedHash){ showContent(); }
+    else{ err.textContent="비밀번호가 올바르지 않아요."; err.style.display="block"; }
+  }
+});
+document.getElementById("pwInput").addEventListener("keydown", e => { if(e.key==="Enter") document.getElementById("gateBtn").click(); });
+document.getElementById("pwConfirm").addEventListener("keydown", e => { if(e.key==="Enter") document.getElementById("gateBtn").click(); });
+</script>
+</body>
+</html>

@@ -20,9 +20,12 @@
   .wrap{ max-width:640px; margin:0 auto; padding:28px 16px; }
   .page-card{ background:var(--paper-deep); border-radius:16px; padding:28px 26px 32px; }
   header{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:22px; }
+  .admin-btn{ flex:0 0 auto; font-size:11px; color:var(--ink-soft); text-decoration:none; border:0.5px solid var(--line); padding:5px 11px; border-radius:99px; background:#fff; }
+  .admin-btn:hover{ color:var(--ink); border-color:var(--ink); }
   .title-row{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
   h1{ font-family:'Noto Serif KR',serif; font-weight:700; font-size:26px; margin:0; letter-spacing:-0.01em; }
   .sub{ color:var(--ink-soft); font-size:13.5px; margin:0; }
+  .streak{ display:inline-block; font-size:11px; color:var(--vermillion); font-weight:700; margin:6px 0 0; }
   .announce{ display:none; align-items:center; gap:10px; background:var(--vermillion); padding:12px 16px; border-radius:8px; font-size:13.5px; margin-bottom:20px; }
   .announce .icon{ flex:0 0 auto; width:18px; height:18px; }
   .announce b{ color:#fff; font-weight:700; margin-right:6px; }
@@ -53,7 +56,8 @@
   .vod-item{ display:flex; align-items:center; gap:10px; background:#fff; border:0.5px solid var(--line); border-radius:8px; padding:10px 14px; font-size:13px; text-decoration:none; color:var(--ink); }
   .vod-item:hover{ background:var(--paper); }
   .vod-item .d{ font-size:11.5px; color:var(--ink-soft); margin-left:auto; }
-  .embed-card{ background:#fff; border:0.5px solid var(--line); border-radius:10px; overflow:hidden; }
+  .embed-card{ background:#fff; border:0.5px solid var(--line); border-radius:10px; overflow:hidden; min-height:auto; line-height:0; }
+  .embed-card iframe{ display:block; }
   .embed-empty{ padding:18px; font-size:13px; color:var(--ink-soft); text-align:center; }
   .progress-card{ background:#fff; border:0.5px solid var(--line); border-radius:10px; padding:18px 18px; }
   .progress-head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:12px; }
@@ -65,9 +69,14 @@
   .rules{ margin:0; padding:14px 14px 14px 30px; background:#fff; border:0.5px solid var(--line); border-radius:10px; font-size:13px; color:var(--ink); }
   .rules li{ margin-bottom:6px; }
   .rules li:last-child{ margin-bottom:0; }
+  .links-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .link-chip{ display:inline-flex; align-items:center; gap:6px; background:#fff; border:0.5px solid var(--line); border-radius:99px; padding:8px 16px; font-size:13px; color:var(--ink); text-decoration:none; }
+  .link-chip:hover{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  .links-empty{ font-size:12.5px; color:var(--ink-soft); }
   footer{ margin-top:26px; font-size:11px; color:var(--ink-soft); text-align:center; }
   @media (max-width:420px){ h1{font-size:22px;} .page-card{padding:20px 16px 26px;} .day-row{gap:10px;} .day-label{flex-basis:38px; font-size:14px;} .countdown-card{flex-direction:column; align-items:flex-start;} }
 </style>
+<script async src="https://tally.so/widgets/embed.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -85,7 +94,9 @@
         <h1>이번 주 방송</h1>
       </div>
       <p class="sub">매일 밤, 코드와 문장 사이</p>
+      <p class="streak" id="streakBadge"></p>
     </div>
+    <a class="admin-btn" href="./admin.html">관리자</a>
   </header>
 
   <div class="announce" id="announceBanner">
@@ -123,6 +134,9 @@
 
   <h2 class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.6" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>방송 규칙</h2>
   <ul class="rules" id="rulesList"></ul>
+
+  <h2 class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="1.6" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>관련 링크</h2>
+  <div class="links-row" id="linksRow"></div>
 
   <footer>일정은 사정에 따라 바뀔 수 있어요</footer>
 </div>
@@ -167,6 +181,16 @@ const RULES = [
   "후원 문구는 방송 중 자동으로 낭독돼요",
   "스포일러성 발언은 삼가주세요"
 ];
+
+// 관련 링크: label, url. 안 쓰실 항목은 지우거나 url을 빈 문자열로 두세요.
+const LINKS = [
+  // { label: "디스코드", url: "https://discord.gg/xxxxx" },
+  // { label: "트위터", url: "https://twitter.com/xxxxx" },
+  // { label: "후원하기", url: "https://toon.at/donate/xxxxx" },
+];
+
+// 방송 시작일(YYYY-MM-DD). 누적 방송일수 계산에 쓰여요. 실제 시작일로 바꿔주세요.
+const STREAM_START_DATE = "2026-08-01";
 
 /* ==================================================== */
 
@@ -219,7 +243,13 @@ function renderVods(){
 function renderEmbed(id,url,label){
   const el=document.getElementById(id);
   if(!url){ el.innerHTML=`<div class="embed-empty">${label} 준비 중이에요</div>`; return; }
-  el.innerHTML=`<iframe src="${url}" style="width:100%; height:420px; border:0;" loading="lazy"></iframe>`;
+  el.innerHTML=`<iframe data-tally-src="${url}" width="100%" style="border:0;" title="${label}"></iframe>`;
+  let tries=0;
+  const tryLoad=()=>{
+    if(window.Tally){ window.Tally.loadEmbeds(); return; }
+    if(tries++ < 20) setTimeout(tryLoad, 250);
+  };
+  tryLoad();
 }
 function renderProgress(){
   const p=PROGRESS;
@@ -237,6 +267,20 @@ function renderAnnounce(){
 }
 function renderRules(){
   document.getElementById("rulesList").innerHTML=RULES.map(r=>`<li>${escapeHtml(r)}</li>`).join("");
+}
+function renderLinks(){
+  const el=document.getElementById("linksRow");
+  const valid=LINKS.filter(l=>l && l.url);
+  if(!valid.length){ el.innerHTML=`<span class="links-empty">아직 등록된 링크가 없어요</span>`; return; }
+  el.innerHTML=valid.map(l=>`<a class="link-chip" href="${l.url}" target="_blank" rel="noopener">${escapeHtml(l.label)}</a>`).join("");
+}
+function renderStreak(){
+  const el=document.getElementById("streakBadge");
+  if(!STREAM_START_DATE){ el.style.display="none"; return; }
+  const start=new Date(STREAM_START_DATE+"T00:00:00"), now=new Date();
+  const days=Math.floor((new Date(now.getFullYear(),now.getMonth(),now.getDate()) - new Date(start.getFullYear(),start.getMonth(),start.getDate()))/86400000)+1;
+  if(days<1){ el.style.display="none"; return; }
+  el.textContent=`함께한 지 ${days}일째`;
 }
 function formatICSDate(dt){return `${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;}
 function escapeICS(s){return String(s).replace(/[,;]/g,"\\$&").replace(/\n/g," ");}
@@ -260,7 +304,7 @@ document.getElementById("icsBtn").addEventListener("click",()=>{
 
 renderAnnounce(); renderCountdown(); setInterval(renderCountdown,30000);
 renderSchedule(); renderVods(); renderEmbed("pollEmbed",POLL_EMBED_URL,"투표"); renderEmbed("suggestEmbed",SUGGEST_EMBED_URL,"건의함");
-renderProgress(); renderRules();
+renderProgress(); renderRules(); renderLinks(); renderStreak();
 </script>
 </body>
 </html>
