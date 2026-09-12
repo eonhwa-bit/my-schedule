@@ -91,6 +91,12 @@
     </div>
   </div>
 
+  <h2 class="section-title">공지 수정</h2>
+  <div class="card">
+    <p>비워두면 시청자 화면에서 공지 배너가 안 보여요.</p>
+    <textarea id="announceInput" placeholder="예: 이번 주 목요일 방송은 11시로 미뤄져요" style="width:100%; font-family:inherit; font-size:13px; padding:9px 10px; border:1px solid var(--line); border-radius:6px; min-height:50px; resize:vertical;"></textarea>
+  </div>
+
   <h2 class="section-title">일정 수정</h2>
   <div class="card">
     <p id="loadStatus">일정을 불러오는 중...</p>
@@ -268,6 +274,10 @@ async function loadSchedule(){
     if(!m) throw new Error("DAYS를 찾지 못했어요");
     days = new Function("return " + m[1])();
     days.forEach(d => { d._presetKey = matchPreset(d.startTime, d.endTime); });
+
+    const am = rawHTML.match(/const ANNOUNCEMENT = (".*?");/);
+    if(am) document.getElementById("announceInput").value = new Function("return " + am[1])();
+
     status.style.display = "none";
     renderDayEditor();
     document.getElementById("downloadBtn").style.display = "inline-flex";
@@ -279,7 +289,10 @@ async function loadSchedule(){
 
 function buildUpdatedHTML(){
   const newLiteral = buildDaysLiteral();
-  return rawHTML.replace(/const DAYS = \[[\s\S]*?\n\];/, newLiteral);
+  let html = rawHTML.replace(/const DAYS = \[[\s\S]*?\n\];/, newLiteral);
+  const announceVal = document.getElementById("announceInput").value;
+  html = html.replace(/const ANNOUNCEMENT = ".*?";/, `const ANNOUNCEMENT = ${JSON.stringify(announceVal)};`);
+  return html;
 }
 
 document.getElementById("downloadBtn").addEventListener("click", () => {
